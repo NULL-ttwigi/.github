@@ -102,7 +102,7 @@ jobs:
         
         echo "=== 변경사항 커밋 ==="
         git add profile/README.md
-        git commit -m "docs: 주간 자동 업데이트 - 멤버 통계 $(date +'%Y-%m-%d %H:%M')"
+        git commit -m "docs: 주간 자동 업데이트 - 멤버 통계 [$(date +'%y-%m-%d')]"
         
         echo "=== 푸시 시도 ==="
         git push origin main
