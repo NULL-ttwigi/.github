@@ -33,11 +33,12 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git pull --rebase
+        git fetch origin
+        git reset --hard origin/main
         git add profile/README.md
         if ! git diff --quiet --staged; then
           git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
-          git push
+          git push origin main
         else
           echo "변경사항이 없습니다."
         fi
