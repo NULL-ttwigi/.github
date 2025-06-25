@@ -89,11 +89,43 @@ def get_org_repos():
 def get_user_repos_count(username, org_repos):
     """해당 사용자가 생성한 조직 내 퍼블릭 레포지토리 개수를 반환합니다."""
     try:
-        # 해당 사용자가 소유자인 레포지토리 찾기
-        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        # 방법 1: 레포지토리 이름이 사용자명과 일치하는 것
+        name_match_repos = [repo for repo in org_repos if repo.get('name') == username]
+        
+        # 방법 2: 레포지토리의 첫 번째 커밋 작성자 확인
+        author_repos = []
+        for repo in org_repos:
+            repo_name = repo.get('name')
+            if repo_name in ['.github']:  # 시스템 레포는 제외
+                continue
+                
+            # 첫 번째 커밋 확인
+            try:
+                url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+                params = {'per_page': 1, 'sha': 'main'}  # 가장 오래된 커밋부터
+                response = requests.get(url, headers=HEADERS, params=params)
+                
+                if response.status_code == 200:
+                    commits = response.json()
+                    if commits:
+                        # 첫 번째 커밋의 작성자 확인
+                        first_commit_author = commits[0].get('author', {}).get('login', '')
+                        if first_commit_author == username:
+                            author_repos.append(repo)
+            except Exception as e:
+                print(f"   {repo_name}: 첫 커밋 확인 실패 - {e}")
+                continue
+        
+        # 두 방법으로 찾은 레포지토리 합치기 (중복 제거)
+        user_repos = name_match_repos.copy()
+        for repo in author_repos:
+            if repo not in user_repos:
+                user_repos.append(repo)
         
         print(f"🔍 {username}이 생성한 퍼블릭 레포지토리 검색:")
         print(f"   조직 내 전체 레포지토리: {len(org_repos)}개")
+        print(f"   이름 매칭: {[repo.get('name') for repo in name_match_repos]}")
+        print(f"   첫 커밋 작성자 매칭: {[repo.get('name') for repo in author_repos]}")
         print(f"   {username}이 소유한 레포지토리: {[repo.get('name') for repo in user_repos]}")
         print(f"   📊 {username}: 퍼블릭 레포지토리 {len(user_repos)}개")
         
@@ -106,8 +138,32 @@ def get_user_repos_count(username, org_repos):
 def get_user_total_commits(username, org_repos):
     """해당 사용자가 생성한 모든 레포지토리에서의 총 커밋 수를 계산합니다."""
     try:
-        # 해당 사용자가 소유자인 레포지토리 찾기
-        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        # 방법 1: 레포지토리 이름이 사용자명과 일치하는 것
+        name_match_repos = [repo for repo in org_repos if repo.get('name') == username]
+        
+        # 방법 2: 레포지토리의 첫 번째 커밋 작성자 확인
+        author_repos = []
+        for repo in org_repos:
+            repo_name = repo.get('name')
+            if repo_name in ['.github']:  # 시스템 레포는 제외
+                continue
+                
+            # 첫 번째 커밋 확인 (간단하게 하기 위해 이름 매칭된 것만 추가 확인)
+            if repo not in name_match_repos:
+                try:
+                    url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+                    params = {'author': username, 'per_page': 1}
+                    response = requests.get(url, headers=HEADERS, params=params)
+                    
+                    if response.status_code == 200:
+                        commits = response.json()
+                        if commits:  # 해당 사용자의 커밋이 있으면 그 사용자의 레포로 간주
+                            author_repos.append(repo)
+                except Exception:
+                    continue
+        
+        # 두 방법으로 찾은 레포지토리 합치기
+        user_repos = name_match_repos + author_repos
         
         total_commits = 0
         
@@ -148,8 +204,31 @@ def get_user_total_commits(username, org_repos):
 def get_weekly_goal_achieved_weeks(username, org_repos):
     """사용자가 조직 내에서 주 3커밋 이상 달성한 주 수를 계산합니다."""
     try:
-        # 해당 사용자가 소유자인 레포지토리 찾기
-        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        # 방법 1: 레포지토리 이름이 사용자명과 일치하는 것
+        name_match_repos = [repo for repo in org_repos if repo.get('name') == username]
+        
+        # 방법 2: 해당 사용자의 커밋이 있는 레포지토리
+        author_repos = []
+        for repo in org_repos:
+            repo_name = repo.get('name')
+            if repo_name in ['.github']:  # 시스템 레포는 제외
+                continue
+                
+            if repo not in name_match_repos:
+                try:
+                    url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+                    params = {'author': username, 'per_page': 1}
+                    response = requests.get(url, headers=HEADERS, params=params)
+                    
+                    if response.status_code == 200:
+                        commits = response.json()
+                        if commits:
+                            author_repos.append(repo)
+                except Exception:
+                    continue
+        
+        # 두 방법으로 찾은 레포지토리 합치기
+        user_repos = name_match_repos + author_repos
         
         print(f"🔍 {username}의 주간 목표 달성 계산:")
         print(f"   대상 레포지토리: {[repo.get('name') for repo in user_repos]}")
@@ -296,7 +375,7 @@ def update_readme():
         stats_table += f"| {stats['name']} | {stats['total_commits']}개 | {stats['weekly_goals']}주 | {tier} | {repo_info} |\n"
     
     # 안내 문구 추가
-    stats_table += "\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매주 자동으로 업데이트됩니다!\n\n> 📝 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 수동으로 업데이트해주세요!\n\n> 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다."
+    stats_table += "\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매주 자동으로 업데이트됩니다!\n\n> �� **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 수동으로 업데이트해주세요!\n\n> 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다."
     
     # README에서 기존 성과 테이블을 찾아 교체
     pattern = r'### 📈 멤버별 성과\n.*?(?=\n### |$)'
