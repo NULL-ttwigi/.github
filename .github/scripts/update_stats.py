@@ -20,9 +20,9 @@ MEMBERS = {
 }
 # 개인 티어 (수동 업데이트 필요)
 TIERS = {
-    'girlwcode': '-', 
-    'heheelee': '-', 
-    'mini-u': '-' 
+    'girlwcode': 'test', 
+    'heheelee': 'test2', 
+    'mini-u': 'test3' 
 }
 
 # 문제 풀이 커밋 메시지 패턴
