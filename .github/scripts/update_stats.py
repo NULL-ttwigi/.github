@@ -250,9 +250,17 @@ def update_readme():
     """README.md 파일을 업데이트합니다."""
     readme_path = 'profile/README.md'
     
+    print(f"📁 README 파일 경로: {readme_path}")
+    print(f"📁 파일 존재 여부: {os.path.exists(readme_path)}")
+    
     # 현재 README 읽기
-    with open(readme_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    try:
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        print(f"📖 README 파일 읽기 성공 (길이: {len(content)} 문자)")
+    except Exception as e:
+        print(f"❌ README 파일 읽기 실패: {e}")
+        return
     
     # 멤버별 통계 수집
     stats_data = []
@@ -304,10 +312,21 @@ def update_readme():
         content = re.sub(pattern, performance_section, content, flags=re.DOTALL)
     
     # 업데이트된 README 저장
-    with open(readme_path, 'w', encoding='utf-8') as f:
-        f.write(content)
+    try:
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"💾 README 파일 저장 성공 (길이: {len(content)} 문자)")
+    except Exception as e:
+        print(f"❌ README 파일 저장 실패: {e}")
+        return
     
     print("✅ README가 성공적으로 업데이트되었습니다!")
+    
+    # 업데이트된 통계 요약 출력
+    print(f"📊 업데이트 요약:")
+    print(f"   - 멤버 수: {len(stats_data)}명")
+    print(f"   - 총 해결 문제: {total_problems}개")
+    print(f"   - 최장 연속 풀이: {max_streak_weeks}주 ({max_streak_users})")
 
 if __name__ == "__main__":
     update_readme() 

@@ -51,37 +51,48 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        echo "=== Git 상태 확인 ==="
+        echo "=== 초기 Git 상태 확인 ==="
         git status
-        git log --oneline -5
         
-        echo "=== 원격 상태 확인 ==="
-        git fetch origin
-        git log origin/main --oneline -5
+        echo "=== 스크립트 실행 전 README 상태 ==="
+        echo "README 존재 여부: $(ls -la profile/README.md 2>/dev/null || echo '파일 없음')"
+        echo "README 앞부분:"
+        head -10 profile/README.md 2>/dev/null || echo "README 읽기 실패"
         
-        echo "=== 강제 동기화 ==="
-        git reset --hard origin/main
-        
-        echo "=== 스크립트 다시 실행 ==="
+        echo "=== 스크립트 실행 ==="
         python .github/scripts/update_stats.py
+        echo "스크립트 실행 완료 (종료 코드: $?)"
         
-        echo "=== 변경사항 확인 ==="
+        echo "=== 스크립트 실행 후 변경사항 확인 ==="
         git status
-        git diff
+        git diff --name-only
+        git diff profile/README.md || echo "README 변경사항 없음"
         
-        # 변경사항이 있는지 확인
+        echo "=== 변경된 파일들 확인 ==="
         if git diff --quiet; then
           echo "❌ 변경사항이 없습니다."
-          echo "=== 현재 README 내용 확인 ==="
-          head -20 profile/README.md
-          echo "=== 스크립트 실행 결과 확인 ==="
-          python .github/scripts/update_stats.py || echo "스크립트 실행 실패"
+          echo "=== README 통계 섹션 확인 ==="
+          grep -A 10 "멤버별 성과" profile/README.md || echo "통계 섹션을 찾을 수 없음"
           exit 0
+        else
+          echo "✅ 변경사항이 있습니다!"
+          echo "변경된 파일들:"
+          git diff --name-only
         fi
         
         echo "=== 커밋 및 푸시 ==="
         git add .
         git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
-        git push origin main
+        
+        echo "=== 푸시 시도 ==="
+        git push origin main || {
+          echo "푸시 실패, 상태 확인:"
+          git status
+          git log --oneline -3
+          exit 1
+        }
+        
+        echo "✅ 성공적으로 업데이트 완료!"
       env:
         GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+        CUSTOM_GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
