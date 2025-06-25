@@ -19,6 +19,7 @@ jobs:
       uses: actions/checkout@v3
       with:
         token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+        fetch-depth: 0
         
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -38,15 +39,33 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
+        echo "=== Git 상태 확인 ==="
+        git status
+        git log --oneline -5
+        
+        echo "=== 원격 상태 확인 ==="
+        git fetch origin
+        git log origin/main --oneline -5
+        
+        echo "=== 강제 동기화 ==="
+        git reset --hard origin/main
+        
+        echo "=== 스크립트 다시 실행 ==="
+        python .github/scripts/update_stats.py
+        
+        echo "=== 변경사항 확인 ==="
+        git status
+        git diff
+        
         # 변경사항이 있는지 확인
         if git diff --quiet; then
-          echo "변경사항이 없습니다."
+          echo "❌ 변경사항이 없습니다."
           exit 0
         fi
         
-        # 변경사항이 있으면 커밋하고 푸시
+        echo "=== 커밋 및 푸시 ==="
         git add .
         git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
-        git push --force-with-lease origin main
+        git push origin main
       env:
         GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
