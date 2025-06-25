@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+import requests
+import re
+import os
+from datetime import datetime, timedelta
+
+# GitHub API 설정
+GITHUB_TOKEN = os.getenv('CUSTOM_GITHUB_TOKEN')
+HEADERS = {
+    'Authorization': f'token {GITHUB_TOKEN}',
+    'Accept': 'application/vnd.github.v3+json'
+}
+
+# 조직 및 멤버 정보
+ORG_NAME = 'NULL-ttwigi'  
+MEMBERS = {
+    'girlwcode': '안예린',
+    'heheelee': '이현희', 
+    'mini-u': '유성민'
+}
+# 개인 티어 (수동 업데이트 필요)
+TIERS = {
+    'girlwcode': '-', 
+    'heheelee': '-', 
+    'mini-u': '-' 
+}
+
+# 문제 풀이 커밋 메시지 패턴
+PROBLEM_SOLVE_PATTERNS = [
+    r'\[BOJ-\d+\]',  # [BOJ-0001 or BOJ-1] 형태
+    r'\[Programmers\]',  # [Programmers] 형태
+    r'\[LeetCode\]',  # [LeetCode] 형태
+    r'\[SWEA\]',  # [SWEA] 형태
+]
+
+def is_problem_solve_commit(commit_message):
+    """커밋 메시지가 문제 풀이인지 확인합니다."""
+    for pattern in PROBLEM_SOLVE_PATTERNS:
+        if re.search(pattern, commit_message, re.IGNORECASE):
+            return True
+    return False
+
+def get_org_repos():
+    """조직의 모든 레포지토리를 가져옵니다."""
+    repos = []
+    page = 1
+    
+    while True:
+        url = f'https://api.github.com/orgs/{ORG_NAME}/repos?page={page}&per_page=100'
+        response = requests.get(url, headers=HEADERS)
+        
+        if response.status_code != 200:
+            print(f"Error fetching repos: {response.status_code}")
+            break
+            
+        page_repos = response.json()
+        if not page_repos:
+            break
+            
+        repos.extend(page_repos)
+        page += 1
+    
+    return repos
+
+def get_user_commits_in_repo(username, repo_name):
+    """특정 레포지토리에서 사용자의 문제 풀이 커밋 수를 가져옵니다."""
+    try:
+        # 최근 1년간의 커밋 수를 가져옵니다
+        since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+        params = {
+            'author': username,
+            'since': since_date,
+            'per_page': 100
+        }
+        
+        response = requests.get(url, headers=HEADERS, params=params)
+        
+        if response.status_code == 200:
+            commits = response.json()
+            problem_solve_count = 0
+            
+            for commit in commits:
+                commit_message = commit.get('commit', {}).get('message', '')
+                if is_problem_solve_commit(commit_message):
+                    problem_solve_count += 1
+            
+            print(f"{username}의 {repo_name} 레포에서 문제 풀이 커밋 {problem_solve_count}개")
+            return problem_solve_count
+        else:
+            print(f"Error getting commits for {username} in {repo_name}: {response.status_code}")
+            return 0
+            
+    except Exception as e:
+        print(f"Error getting commits for {username} in {repo_name}: {e}")
+        return 0
+
+def get_weekly_goal_achieved_weeks(username):
+    """사용자가 조직 내에서 주 3커밋 이상 달성한 주 수를 계산합니다."""
+    try:
+        # 조직의 모든 레포지토리 가져오기
+        org_repos = get_org_repos()
+        
+        # 사용자가 만든 레포지토리 찾기
+        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        
+        # 주별로 그룹화
+        weekly_commits = {}
+        
+        for repo in user_repos:
+            repo_name = repo['name']
+            # 최근 1년간의 커밋 수를 가져옵니다
+            since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+            url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+            params = {
+                'author': username,
+                'since': since_date,
+                'per_page': 100
+            }
+            
+            response = requests.get(url, headers=HEADERS, params=params)
+            
+            if response.status_code == 200:
+                commits = response.json()
+                
+                for commit in commits:
+                    commit_date_str = commit.get('commit', {}).get('author', {}).get('date', '')[:10]
+                    if commit_date_str:
+                        commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d')
+                        week_key = commit_date.strftime('%Y-W%U')  # YYYY-WNN 형식 (주 번호)
+                        
+                        if week_key not in weekly_commits:
+                            weekly_commits[week_key] = 0
+                        weekly_commits[week_key] += 1
+        
+        # 주 3커밋 이상 달성한 주 수 계산
+        achieved_weeks = 0
+        for week, commit_count in weekly_commits.items():
+            if commit_count >= 3:
+                achieved_weeks += 1
+        
+        return achieved_weeks
+        
+    except Exception as e:
+        print(f"Error calculating weekly goals for {username}: {e}")
+        return 0
+
+def get_user_stats(username):
+    """조직 내에서 사용자의 통계를 가져옵니다."""
+    try:
+        # 사용자 정보 가져오기
+        user_url = f'https://api.github.com/users/{username}'
+        user_response = requests.get(user_url, headers=HEADERS)
+        user_data = user_response.json()
+        
+        # 조직의 모든 레포지토리 가져오기
+        org_repos = get_org_repos()
+        
+        # 사용자가 만든 레포지토리 찾기
+        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        
+        # 각 레포지토리에서 사용자의 커밋 수 계산
+        total_commits = 0
+        for repo in user_repos:
+            repo_name = repo['name']
+            commits = get_user_commits_in_repo(username, repo_name)
+            total_commits += commits
+        
+        weekly_goals = get_weekly_goal_achieved_weeks(username)
+        
+        return {
+            'name': MEMBERS[username],
+            'username': username,
+            'repos_count': len(user_repos),
+            'total_commits': total_commits,
+            'weekly_goals': weekly_goals,
+            'created_at': user_data.get('created_at', '')
+        }
+    except Exception as e:
+        print(f"Error getting stats for {username}: {e}")
+        return {
+            'name': MEMBERS[username],
+            'username': username,
+            'repos_count': 0,
+            'total_commits': 0,
+            'weekly_goals': 0,
+            'created_at': ''
+        }
+
+def get_longest_streak_user(stats_data):
+    """가장 긴 연속 풀이 주수를 달성한 사용자들을 찾습니다."""
+    if not stats_data:
+        return 0, "-"
+    
+    max_streak = 0
+    max_streak_users = []
+    
+    # 최대 연속 풀이 주수 찾기
+    for stats in stats_data:
+        if stats['weekly_goals'] > max_streak:
+            max_streak = stats['weekly_goals']
+    
+    # 최대 연속 풀이를 달성한 모든 사용자 찾기
+    for stats in stats_data:
+        if stats['weekly_goals'] == max_streak:
+            max_streak_users.append(stats['name'])
+    
+    # 사용자 이름들을 쉼표로 구분하여 반환
+    if max_streak_users:
+        return max_streak, ", ".join(max_streak_users)
+    else:
+        return 0, "-"
+
+def update_readme():
+    """README.md 파일을 업데이트합니다."""
+    readme_path = 'profile/README.md'
+    
+    # 현재 README 읽기
+    with open(readme_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # 멤버별 통계 수집
+    stats_data = []
+    for username in MEMBERS.keys():
+        stats = get_user_stats(username)
+        stats_data.append(stats)
+    
+    # 성과 테이블 업데이트 (안내 문구 포함)
+    stats_table = "### 📈 멤버별 성과\n"
+    stats_table += "| 이름 | 🎯 해결 문제 | 📅 주 목표 달성 | 🏆 최고 티어 | 📁 공개 저장소 |\n"
+    stats_table += "|------|-------------|---------------|-------------|---------------|\n"
+    
+    for stats in stats_data:
+        # TIERS 상수에서 최고 티어 정보 가져오기
+        tier = TIERS.get(stats['username'], '-')
+        stats_table += f"| {stats['name']} | {stats['total_commits']}개 | {stats['weekly_goals']}주 | {tier} | {stats['repos_count']}개 |\n"
+    
+    # 안내 문구 추가
+    stats_table += "\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매일 자동으로 업데이트됩니다!\n\n> 📝 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 수동으로 업데이트해주세요!"
+    
+    # README에서 기존 성과 테이블을 찾아 교체
+    pattern = r'### 📈 멤버별 성과\n.*?(?=\n### |$)'
+    if re.search(pattern, content, re.DOTALL):
+        content = re.sub(pattern, stats_table.rstrip(), content, flags=re.DOTALL)
+    else:
+        # 패턴을 찾지 못하면 적절한 위치에 추가
+        content = content.replace('### 🏆 스터디 목표', f'{stats_table}\n### 🏆 스터디 목표')
+    
+    # 총 해결 문제와 최장 연속 풀이 계산
+    total_problems = sum(stats['total_commits'] for stats in stats_data)
+    max_streak_weeks, max_streak_users = get_longest_streak_user(stats_data)
+    
+    # 성과 기록 업데이트
+    current_date = datetime.now().strftime('%Y년 %m월 %d일')
+    performance_section = f"""## 🎉 성과 기록
+
+- **총 해결 문제**: {total_problems}개
+- **현재 최장 연속 풀이**: {max_streak_weeks}주 (🏆 {max_streak_users})
+- **마지막 업데이트**: {current_date}
+"""
+    
+    # README에서 기존 성과 기록을 찾아 교체
+    pattern = r'## 🎉 성과 기록\n.*?(?=\n## |$)'
+    if re.search(pattern, content, re.DOTALL):
+        content = re.sub(pattern, performance_section, content, flags=re.DOTALL)
+    
+    # 업데이트된 README 저장
+    with open(readme_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    print("✅ README가 성공적으로 업데이트되었습니다!")
+
+if __name__ == "__main__":
+    update_readme() 

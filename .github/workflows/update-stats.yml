@@ -1,0 +1,36 @@
+name: Update Member Statistics
+
+on:
+  schedule:
+    # 매주 일요일에서 월요일로 넘어가는 자정에 실행
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        pip install requests
+        
+    - name: Update member statistics
+      run: |
+        python .github/scripts/update_stats.py
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add profile/README.md
+        git diff --quiet && git diff --staged --quiet || git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
+        git push 
