@@ -37,14 +37,16 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git fetch origin
-        git reset --hard origin/main
-        git add profile/README.md
-        if ! git diff --quiet --staged; then
-          git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
-          git push origin main
-        else
+        
+        # 변경사항이 있는지 확인
+        if git diff --quiet; then
           echo "변경사항이 없습니다."
+          exit 0
         fi
+        
+        # 변경사항이 있으면 커밋하고 푸시
+        git add .
+        git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
+        git push --force-with-lease origin main
       env:
-        GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
