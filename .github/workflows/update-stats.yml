@@ -54,10 +54,13 @@ jobs:
         echo "=== 초기 Git 상태 확인 ==="
         git status
         
+        echo "=== 원격 저장소 최신 상태 확인 ==="
+        git fetch origin
+        
         echo "=== 스크립트 실행 전 README 상태 ==="
         echo "README 존재 여부: $(ls -la profile/README.md 2>/dev/null || echo '파일 없음')"
-        echo "README 앞부분:"
-        head -10 profile/README.md 2>/dev/null || echo "README 읽기 실패"
+        echo "README 통계 섹션 확인:"
+        grep -A 5 "멤버별 성과" profile/README.md 2>/dev/null || echo "통계 섹션 없음"
         
         echo "=== 스크립트 실행 ==="
         python .github/scripts/update_stats.py
@@ -83,6 +86,16 @@ jobs:
         echo "=== 커밋 및 푸시 ==="
         git add .
         git commit -m "docs: 주간 자동 업데이트 - 멤버 및 팀 통계"
+        
+        echo "=== 푸시 전 원격 동기화 ==="
+        git pull --rebase origin main || {
+          echo "원격 동기화 실패, 충돌 해결 시도:"
+          git status
+          # 충돌이 있다면 자동으로 해결 (우리 변경사항 우선)
+          git checkout --ours profile/README.md
+          git add profile/README.md
+          git rebase --continue || echo "리베이스 계속 실패"
+        }
         
         echo "=== 푸시 시도 ==="
         git push origin main || {
