@@ -320,11 +320,8 @@ def update_readme():
     
     stats_table += "\n</div>"
     
-    # 안내 문구 추가
-    stats_table += "\n\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매주 자동으로 업데이트됩니다!\n\n> 🏆 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 update_stats.py 파일에서 수동으로 업데이트해주세요!\n\n> 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다."
-    
     # README에서 기존 성과 테이블을 찾아 교체 (div 구조 대응)
-    pattern = r'<div align="center">\s*\n\s*### 📈 멤버별 성과.*?</div>.*?(?=\n### |\n## |$)'
+    pattern = r'<div align="center">\s*\n\s*### 📈 멤버별 성과.*?</div>'
     if re.search(pattern, content, re.DOTALL):
         content = re.sub(pattern, stats_table.rstrip(), content, flags=re.DOTALL)
     else:
@@ -361,12 +358,12 @@ def update_readme():
         content = re.sub(pattern, performance_section.rstrip(), content, flags=re.DOTALL)
     else:
         # 구버전 패턴도 시도 (div 없는 버전)
-        old_pattern = r'## 🎉 성과 기록\n.*?(?=\n## |$)'
+        old_pattern = r'## 🎉 성과 기록\n.*?(?=\n\n## )'
         if re.search(old_pattern, content, re.DOTALL):
             content = re.sub(old_pattern, performance_section.rstrip(), content, flags=re.DOTALL)
         else:
             # 패턴을 찾지 못하면 적절한 위치에 추가
-            content = content.replace('## 🤖 자동 통계 업데이트', f'{performance_section}\n## ⚙️ 자동 통계 업데이트')
+            content = content.replace('## 🤖 자동 통계 업데이트', f'{performance_section}\n## 🤖 자동 통계 업데이트')
     
     # 업데이트된 README 저장
     try:

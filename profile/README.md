@@ -18,9 +18,9 @@ Welcome! 코딩테스트 준비를 위한 스터디, **널뛰기(NULL-ttwigi)** 
 
 💭 **널뛰기**는 데이터 사이언티스트/분석가들이 자주 마주치는 **NULL 값**에서 영감을 받은 스터디 이름입니다.
 
-<table>
+<table style="border: none;">
 <tr>
-<td align="center" width="300">
+<td align="center" width="500" style="border: none;">
 
 ### 🎯 이름의 의미
 - **NULL**: 데이터 분석에서 '결측치'를 의미하는 값
@@ -28,7 +28,7 @@ Welcome! 코딩테스트 준비를 위한 스터디, **널뛰기(NULL-ttwigi)** 
 - **NULL-ttwigi**: NULL 값을 뛰어넘어 확실한 데이터 처리 능력을 갖춘 주니어가 되자는 의미
 
 </td>
-<td align="center" width="300">
+<td align="center" width="500" style="border: none;">
 
 ### 💡 스터디 철학
 - **결측치 처리 마스터**: NULL 값을 확실하게 처리하는 능력 기르기
@@ -85,34 +85,34 @@ Welcome! 코딩테스트 준비를 위한 스터디, **널뛰기(NULL-ttwigi)** 
 ## 👥 멤버 소개
 
 <div align="center">
-<table>
+<table style="border: none;">
   <tr>
-    <td align="center">
+    <td align="center" style="border: none;">
       <a href="https://github.com/girlwcode">
-        <img src="https://avatars.githubusercontent.com/girlwcode" width="120px;" alt="안예린" style="border-radius: 50%;"/>
+        <img src="https://avatars.githubusercontent.com/girlwcode" width="150px;" alt="안예린" style="border-radius: 50%;"/>
         <br />
-        <sub><b>🌟 안예린</b></sub>
+        <b>🌟 안예린</b>
       </a>
       <br />
-      <sub>Yelyn Ahn</sub>
+      <i>Yelyn Ahn</i>
     </td>
-    <td align="center">
+    <td align="center" style="border: none;">
       <a href="https://github.com/heheelee">
-        <img src="https://avatars.githubusercontent.com/heheelee" width="120px;" alt="이현희" style="border-radius: 50%;"/>
+        <img src="https://avatars.githubusercontent.com/heheelee" width="150px;" alt="이현희" style="border-radius: 50%;"/>
         <br />
-        <sub><b>🌟 이현희</b></sub>
+        <b>🌟 이현희</b>
       </a>
       <br />
-      <sub>Hyunhee Lee</sub>
+      <i>Hyunhee Lee</i>
     </td>
-    <td align="center">
+    <td align="center" style="border: none;">
       <a href="https://github.com/mini-u">
-        <img src="https://avatars.githubusercontent.com/mini-u" width="120px;" alt="유성민" style="border-radius: 50%;"/>
+        <img src="https://avatars.githubusercontent.com/mini-u" width="150px;" alt="유성민" style="border-radius: 50%;"/>
         <br />
-        <sub><b>🌟 유성민</b></sub>
+        <b>🌟 유성민</b>
       </a>
       <br />
-      <sub>Sungmin Ryu</sub>
+      <i>Sungmin Ryu</i>
     </td>
   </tr>
 </table>
@@ -142,6 +142,9 @@ Welcome! 코딩테스트 준비를 위한 스터디, **널뛰기(NULL-ttwigi)** 
 > 🏆 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 update_stats.py 파일에서 수동으로 업데이트해주세요!
 
 > 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다.
+
+<div align="center">
+
 ### 🏆 스터디 목표
 
 | 기간 | 목표 | 상태 |
