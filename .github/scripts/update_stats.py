@@ -86,12 +86,9 @@ def get_org_repos():
     
     return repos
 
-def get_user_repos_count(username):
+def get_user_repos_count(username, org_repos):
     """해당 사용자가 생성한 조직 내 퍼블릭 레포지토리 개수를 반환합니다."""
     try:
-        # 조직의 퍼블릭 레포지토리 가져오기
-        org_repos = get_org_repos()
-        
         # 해당 사용자가 소유자인 레포지토리 찾기
         user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
         
@@ -106,12 +103,9 @@ def get_user_repos_count(username):
         print(f"Error getting repo count for {username}: {e}")
         return 0
 
-def get_user_total_commits(username):
+def get_user_total_commits(username, org_repos):
     """해당 사용자가 생성한 모든 레포지토리에서의 총 커밋 수를 계산합니다."""
     try:
-        # 조직의 퍼블릭 레포지토리 가져오기
-        org_repos = get_org_repos()
-        
         # 해당 사용자가 소유자인 레포지토리 찾기
         user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
         
@@ -151,12 +145,9 @@ def get_user_total_commits(username):
         print(f"Error getting total commits for {username}: {e}")
         return 0
 
-def get_weekly_goal_achieved_weeks(username):
+def get_weekly_goal_achieved_weeks(username, org_repos):
     """사용자가 조직 내에서 주 3커밋 이상 달성한 주 수를 계산합니다."""
     try:
-        # 조직의 퍼블릭 레포지토리 가져오기
-        org_repos = get_org_repos()
-        
         # 해당 사용자가 소유자인 레포지토리 찾기
         user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
         
@@ -207,7 +198,7 @@ def get_weekly_goal_achieved_weeks(username):
         print(f"Error calculating weekly goals for {username}: {e}")
         return 0
 
-def get_user_stats(username):
+def get_user_stats(username, org_repos):
     """조직 내에서 사용자의 퍼블릭 레포지토리 통계를 가져옵니다."""
     try:
         # 사용자 정보 가져오기
@@ -216,13 +207,13 @@ def get_user_stats(username):
         user_data = user_response.json()
         
         # 사용자가 생성한 레포지토리 개수
-        repos_count = get_user_repos_count(username)
+        repos_count = get_user_repos_count(username, org_repos)
         
         # 총 커밋 수
-        total_commits = get_user_total_commits(username)
+        total_commits = get_user_total_commits(username, org_repos)
         
         # 주간 목표 달성 주 수
-        weekly_goals = get_weekly_goal_achieved_weeks(username)
+        weekly_goals = get_weekly_goal_achieved_weeks(username, org_repos)
         
         return {
             'name': MEMBERS[username],
@@ -283,10 +274,13 @@ def update_readme():
         print(f"❌ README 파일 읽기 실패: {e}")
         return
     
+    # 조직 레포지토리 한 번만 조회
+    org_repos = get_org_repos()
+    
     # 멤버별 통계 수집
     stats_data = []
     for username in MEMBERS.keys():
-        stats = get_user_stats(username)
+        stats = get_user_stats(username, org_repos)
         stats_data.append(stats)
     
     # 성과 테이블 업데이트 (안내 문구 포함)
