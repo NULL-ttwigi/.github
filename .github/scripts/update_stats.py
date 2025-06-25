@@ -305,8 +305,9 @@ def update_readme():
         stats = get_user_stats(username, org_repos)
         stats_data.append(stats)
     
-    # 성과 테이블 업데이트 (안내 문구 포함)
-    stats_table = "### 📈 멤버별 성과\n"
+    # 성과 테이블 업데이트 (중앙 정렬 div 포함)
+    stats_table = "<div align=\"center\">\n\n"
+    stats_table += "### 📈 멤버별 성과\n"
     stats_table += "| 이름 | 🎯 해결 문제 | 📅 주 목표 달성 | 🏆 최고 티어 | 📁 개인 저장소 |\n"
     stats_table += "|------|-------------|---------------|-------------|------------------|\n"
     
@@ -317,34 +318,55 @@ def update_readme():
         repo_info = f"{stats['repos_count']}개"
         stats_table += f"| {stats['name']} | {stats['total_commits']}개 | {stats['weekly_goals']}주 | {tier} | {repo_info} |\n"
     
-    # 안내 문구 추가
-    stats_table += "\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매주 자동으로 업데이트됩니다!\n\n> 🏆 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 update_stats.py 파일에서 수동으로 업데이트해주세요!\n\n> 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다."
+    stats_table += "\n</div>"
     
-    # README에서 기존 성과 테이블을 찾아 교체
-    pattern = r'### 📈 멤버별 성과\n.*?(?=\n### |$)'
+    # 안내 문구 추가
+    stats_table += "\n\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매주 자동으로 업데이트됩니다!\n\n> 🏆 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 update_stats.py 파일에서 수동으로 업데이트해주세요!\n\n> 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다."
+    
+    # README에서 기존 성과 테이블을 찾아 교체 (div 구조 대응)
+    pattern = r'<div align="center">\s*\n\s*### 📈 멤버별 성과.*?</div>.*?(?=\n### |\n## |$)'
     if re.search(pattern, content, re.DOTALL):
         content = re.sub(pattern, stats_table.rstrip(), content, flags=re.DOTALL)
     else:
-        # 패턴을 찾지 못하면 적절한 위치에 추가
-        content = content.replace('### 🏆 스터디 목표', f'{stats_table}\n### 🏆 스터디 목표')
+        # 구버전 패턴도 시도
+        old_pattern = r'### 📈 멤버별 성과\n.*?(?=\n### |$)'
+        if re.search(old_pattern, content, re.DOTALL):
+            content = re.sub(old_pattern, stats_table.rstrip(), content, flags=re.DOTALL)
+        else:
+            # 패턴을 찾지 못하면 적절한 위치에 추가
+            content = content.replace('### 🏆 스터디 목표', f'{stats_table}\n### 🏆 스터디 목표')
     
     # 총 해결 문제와 최장 연속 풀이 계산
     total_problems = sum(stats['total_commits'] for stats in stats_data)
     max_streak_weeks, max_streak_users = get_longest_streak_user(stats_data)
     
-    # 성과 기록 업데이트
+    # 성과 기록 업데이트 (중앙 정렬 테이블)
     current_date = datetime.now().strftime('%Y년 %m월 %d일')
     performance_section = f"""## 🎉 성과 기록
 
-- **총 해결 문제**: {total_problems}개
-- **현재 최장 연속 풀이**: {max_streak_weeks}주 (🏆 {max_streak_users})
-- **마지막 업데이트**: {current_date}
+<div align="center">
+
+| 항목 | 현황 |
+|---------|---------|
+| **총 해결 문제** | {total_problems}개 |
+| **현재 최장 연속 풀이** | {max_streak_weeks}주 (🏆 {max_streak_users}) |
+| **마지막 업데이트** | {current_date} |
+
+</div>
 """
     
-    # README에서 기존 성과 기록을 찾아 교체
-    pattern = r'## 🎉 성과 기록\n.*?(?=\n## |$)'
+    # README에서 기존 성과 기록을 찾아 교체 (div 구조 대응)
+    pattern = r'## 🎉 성과 기록\s*\n\s*<div align="center">.*?</div>'
     if re.search(pattern, content, re.DOTALL):
-        content = re.sub(pattern, performance_section, content, flags=re.DOTALL)
+        content = re.sub(pattern, performance_section.rstrip(), content, flags=re.DOTALL)
+    else:
+        # 구버전 패턴도 시도 (div 없는 버전)
+        old_pattern = r'## 🎉 성과 기록\n.*?(?=\n## |$)'
+        if re.search(old_pattern, content, re.DOTALL):
+            content = re.sub(old_pattern, performance_section.rstrip(), content, flags=re.DOTALL)
+        else:
+            # 패턴을 찾지 못하면 적절한 위치에 추가
+            content = content.replace('## 🤖 자동 통계 업데이트', f'{performance_section}\n## ⚙️ 자동 통계 업데이트')
     
     # 업데이트된 README 저장
     try:
