@@ -6,10 +6,17 @@ from datetime import datetime, timedelta
 
 # GitHub API 설정
 GITHUB_TOKEN = os.getenv('CUSTOM_GITHUB_TOKEN')
-HEADERS = {
-    'Authorization': f'token {GITHUB_TOKEN}',
-    'Accept': 'application/vnd.github.v3+json'
-}
+if GITHUB_TOKEN:
+    HEADERS = {
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json'
+    }
+else:
+    print("⚠️  CUSTOM_GITHUB_TOKEN 환경변수가 설정되지 않았습니다.")
+    print("   로컬 테스트 시에는 GitHub API 호출이 제한될 수 있습니다.")
+    HEADERS = {
+        'Accept': 'application/vnd.github.v3+json'
+    }
 
 # 조직 및 멤버 정보
 ORG_NAME = 'NULL-ttwigi'  
@@ -56,6 +63,11 @@ def get_org_repos():
             print(f"❌ Error fetching repos: {response.status_code}")
             print(f"   URL: {url}")
             print(f"   Response: {response.text}")
+            if response.status_code == 401:
+                print("💡 해결방법: GitHub Personal Access Token이 필요합니다.")
+                print("   1. GitHub Settings > Developer settings > Personal access tokens에서 토큰 생성")
+                print("   2. 필요 권한: repo, read:org, user")
+                print("   3. 환경변수 CUSTOM_GITHUB_TOKEN에 토큰 설정")
             break
             
         page_repos = response.json()
