@@ -6,6 +6,10 @@ on:
     - cron: '0 0 * * 1'
   workflow_dispatch: # 수동 실행 가능
 
+concurrency:
+  group: update-stats
+  cancel-in-progress: true
+
 jobs:
   update-stats:
     runs-on: ubuntu-latest
