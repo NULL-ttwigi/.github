@@ -48,15 +48,15 @@ def is_problem_solve_commit(commit_message):
     return False
 
 def get_org_repos():
-    """조직의 모든 레포지토리를 가져옵니다."""
+    """조직의 퍼블릭 레포지토리를 가져옵니다."""
     repos = []
     page = 1
     
-    print(f"🔍 조직 '{ORG_NAME}'의 레포지토리를 조회합니다...")
+    print(f"🔍 조직 '{ORG_NAME}'의 퍼블릭 레포지토리를 조회합니다...")
     
     while True:
-        # type=all로 설정하여 public과 private 모두 가져오기
-        url = f'https://api.github.com/orgs/{ORG_NAME}/repos?type=all&page={page}&per_page=100'
+        # type=public으로 설정하여 퍼블릭 레포지토리만 가져오기
+        url = f'https://api.github.com/orgs/{ORG_NAME}/repos?type=public&page={page}&per_page=100'
         response = requests.get(url, headers=HEADERS)
         
         if response.status_code != 200:
@@ -78,56 +78,90 @@ def get_org_repos():
         print(f"   📄 페이지 {page}: {len(page_repos)}개 레포지토리 발견")
         page += 1
     
-    print(f"✅ 총 {len(repos)}개의 레포지토리를 찾았습니다:")
+    print(f"✅ 총 {len(repos)}개의 퍼블릭 레포지토리를 찾았습니다:")
     for repo in repos:
         owner = repo.get('owner', {}).get('login', 'unknown')
         name = repo.get('name', 'unknown')
-        visibility = "🔒 private" if repo.get('private', False) else "🌐 public"
-        print(f"   - {owner}/{name} ({visibility})")
+        print(f"   - {owner}/{name} (🌐 public)")
     
     return repos
 
-def get_user_commits_in_repo(username, repo_name):
-    """특정 레포지토리에서 사용자의 문제 풀이 커밋 수를 가져옵니다."""
+def get_user_repos_count(username):
+    """해당 사용자가 생성한 조직 내 퍼블릭 레포지토리 개수를 반환합니다."""
     try:
-        # 최근 1년간의 커밋 수를 가져옵니다
-        since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-        url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
-        params = {
-            'author': username,
-            'since': since_date,
-            'per_page': 100
-        }
+        # 조직의 퍼블릭 레포지토리 가져오기
+        org_repos = get_org_repos()
         
-        response = requests.get(url, headers=HEADERS, params=params)
+        # 해당 사용자가 소유자인 레포지토리 찾기
+        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
         
-        if response.status_code == 200:
-            commits = response.json()
-            problem_solve_count = 0
-            
-            for commit in commits:
-                commit_message = commit.get('commit', {}).get('message', '')
-                if is_problem_solve_commit(commit_message):
-                    problem_solve_count += 1
-            
-            print(f"{username}의 {repo_name} 레포에서 문제 풀이 커밋 {problem_solve_count}개")
-            return problem_solve_count
-        else:
-            print(f"Error getting commits for {username} in {repo_name}: {response.status_code}")
-            return 0
-            
+        print(f"🔍 {username}이 생성한 퍼블릭 레포지토리 검색:")
+        print(f"   조직 내 전체 레포지토리: {len(org_repos)}개")
+        print(f"   {username}이 소유한 레포지토리: {[repo.get('name') for repo in user_repos]}")
+        print(f"   📊 {username}: 퍼블릭 레포지토리 {len(user_repos)}개")
+        
+        return len(user_repos)
+        
     except Exception as e:
-        print(f"Error getting commits for {username} in {repo_name}: {e}")
+        print(f"Error getting repo count for {username}: {e}")
+        return 0
+
+def get_user_total_commits(username):
+    """해당 사용자가 생성한 모든 레포지토리에서의 총 커밋 수를 계산합니다."""
+    try:
+        # 조직의 퍼블릭 레포지토리 가져오기
+        org_repos = get_org_repos()
+        
+        # 해당 사용자가 소유자인 레포지토리 찾기
+        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        
+        total_commits = 0
+        
+        for repo in user_repos:
+            repo_name = repo['name']
+            # 최근 1년간의 커밋 수를 가져옵니다
+            since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+            url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+            params = {
+                'author': username,
+                'since': since_date,
+                'per_page': 100
+            }
+            
+            response = requests.get(url, headers=HEADERS, params=params)
+            
+            if response.status_code == 200:
+                commits = response.json()
+                problem_solve_count = 0
+                
+                for commit in commits:
+                    commit_message = commit.get('commit', {}).get('message', '')
+                    if is_problem_solve_commit(commit_message):
+                        problem_solve_count += 1
+                
+                total_commits += problem_solve_count
+                print(f"   {repo_name}: {problem_solve_count}개 문제 풀이 커밋")
+            else:
+                print(f"   {repo_name}: 커밋 조회 실패 ({response.status_code})")
+        
+        print(f"📊 {username} 총 문제 풀이 커밋 수: {total_commits}개")
+        return total_commits
+        
+    except Exception as e:
+        print(f"Error getting total commits for {username}: {e}")
         return 0
 
 def get_weekly_goal_achieved_weeks(username):
     """사용자가 조직 내에서 주 3커밋 이상 달성한 주 수를 계산합니다."""
     try:
-        # 조직의 모든 레포지토리 가져오기
+        # 조직의 퍼블릭 레포지토리 가져오기
         org_repos = get_org_repos()
         
-        # 사용자가 만든 레포지토리 찾기
+        # 해당 사용자가 소유자인 레포지토리 찾기
         user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        
+        print(f"🔍 {username}의 주간 목표 달성 계산:")
+        print(f"   대상 레포지토리: {[repo.get('name') for repo in user_repos]}")
         
         # 주별로 그룹화
         weekly_commits = {}
@@ -149,14 +183,16 @@ def get_weekly_goal_achieved_weeks(username):
                 commits = response.json()
                 
                 for commit in commits:
-                    commit_date_str = commit.get('commit', {}).get('author', {}).get('date', '')[:10]
-                    if commit_date_str:
-                        commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d')
-                        week_key = commit_date.strftime('%Y-W%U')  # YYYY-WNN 형식 (주 번호)
-                        
-                        if week_key not in weekly_commits:
-                            weekly_commits[week_key] = 0
-                        weekly_commits[week_key] += 1
+                    commit_message = commit.get('commit', {}).get('message', '')
+                    if is_problem_solve_commit(commit_message):
+                        commit_date_str = commit.get('commit', {}).get('author', {}).get('date', '')[:10]
+                        if commit_date_str:
+                            commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d')
+                            week_key = commit_date.strftime('%Y-W%U')  # YYYY-WNN 형식 (주 번호)
+                            
+                            if week_key not in weekly_commits:
+                                weekly_commits[week_key] = 0
+                            weekly_commits[week_key] += 1
         
         # 주 3커밋 이상 달성한 주 수 계산
         achieved_weeks = 0
@@ -164,6 +200,7 @@ def get_weekly_goal_achieved_weeks(username):
             if commit_count >= 3:
                 achieved_weeks += 1
         
+        print(f"   주 3커밋 이상 달성: {achieved_weeks}주")
         return achieved_weeks
         
     except Exception as e:
@@ -171,40 +208,26 @@ def get_weekly_goal_achieved_weeks(username):
         return 0
 
 def get_user_stats(username):
-    """조직 내에서 사용자의 통계를 가져옵니다. (퍼블릭/프라이빗 모든 레포지토리 포함)"""
+    """조직 내에서 사용자의 퍼블릭 레포지토리 통계를 가져옵니다."""
     try:
         # 사용자 정보 가져오기
         user_url = f'https://api.github.com/users/{username}'
         user_response = requests.get(user_url, headers=HEADERS)
         user_data = user_response.json()
         
-        # 조직의 모든 레포지토리 가져오기 (퍼블릭 + 프라이빗)
-        org_repos = get_org_repos()
+        # 사용자가 생성한 레포지토리 개수
+        repos_count = get_user_repos_count(username)
         
-        # 사용자가 만든 레포지토리 찾기
-        user_repos = [repo for repo in org_repos if repo.get('owner', {}).get('login') == username]
+        # 총 커밋 수
+        total_commits = get_user_total_commits(username)
         
-        # 퍼블릭/프라이빗 레포지토리 수 계산
-        public_repos = [repo for repo in user_repos if not repo.get('private', False)]
-        private_repos = [repo for repo in user_repos if repo.get('private', False)]
-        
-        print(f"📊 {username}: 총 {len(user_repos)}개 레포 (🌐 공개: {len(public_repos)}개, 🔒 비공개: {len(private_repos)}개)")
-        
-        # 각 레포지토리에서 사용자의 문제 풀이 커밋 수 계산
-        total_commits = 0
-        for repo in user_repos:
-            repo_name = repo['name']
-            commits = get_user_commits_in_repo(username, repo_name)
-            total_commits += commits
-        
+        # 주간 목표 달성 주 수
         weekly_goals = get_weekly_goal_achieved_weeks(username)
         
         return {
             'name': MEMBERS[username],
             'username': username,
-            'repos_count': len(user_repos),
-            'public_repos': len(public_repos),
-            'private_repos': len(private_repos),
+            'repos_count': repos_count,
             'total_commits': total_commits,
             'weekly_goals': weekly_goals,
             'created_at': user_data.get('created_at', '')
@@ -215,8 +238,6 @@ def get_user_stats(username):
             'name': MEMBERS[username],
             'username': username,
             'repos_count': 0,
-            'public_repos': 0,
-            'private_repos': 0,
             'total_commits': 0,
             'weekly_goals': 0,
             'created_at': ''
@@ -271,19 +292,17 @@ def update_readme():
     # 성과 테이블 업데이트 (안내 문구 포함)
     stats_table = "### 📈 멤버별 성과\n"
     stats_table += "| 이름 | 🎯 해결 문제 | 📅 주 목표 달성 | 🏆 최고 티어 | 📁 개인 저장소 |\n"
-    stats_table += "|------|-------------|---------------|-------------|---------------|\n"
+    stats_table += "|------|-------------|---------------|-------------|------------------|\n"
     
     for stats in stats_data:
         # TIERS 상수에서 최고 티어 정보 가져오기
         tier = TIERS.get(stats['username'], '-')
-        # 레포지토리 정보 표시 (공개/비공개 구분)
+        # 해당 사용자가 생성한 퍼블릭 레포지토리 수 표시
         repo_info = f"{stats['repos_count']}개"
-        if stats.get('public_repos', 0) > 0 or stats.get('private_repos', 0) > 0:
-            repo_info += f" (🌐{stats.get('public_repos', 0)} / 🔒{stats.get('private_repos', 0)})"
         stats_table += f"| {stats['name']} | {stats['total_commits']}개 | {stats['weekly_goals']}주 | {tier} | {repo_info} |\n"
     
     # 안내 문구 추가
-    stats_table += "\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매일 자동으로 업데이트됩니다!\n\n> 📝 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 수동으로 업데이트해주세요!"
+    stats_table += "\n> 💡 **자동 업데이트**: 이 통계는 GitHub Actions를 통해 매주 자동으로 업데이트됩니다!\n\n> 📝 **최고 티어**: 백준/프로그래머스 등에서 달성한 최고 티어를 수동으로 업데이트해주세요!\n\n> 🌐 **집계 범위**: 조직 내에서 해당 멤버가 생성한 퍼블릭 레포지토리만 집계됩니다."
     
     # README에서 기존 성과 테이블을 찾아 교체
     pattern = r'### 📈 멤버별 성과\n.*?(?=\n### |$)'
