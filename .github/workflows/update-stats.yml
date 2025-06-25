@@ -37,7 +37,14 @@ jobs:
         
     - name: Update member statistics
       run: |
+        echo "=== 환경변수 확인 ==="
+        echo "CUSTOM_GITHUB_TOKEN이 설정되어 있는지: $([[ -n "$CUSTOM_GITHUB_TOKEN" ]] && echo "YES" || echo "NO")"
+        echo "토큰 길이: ${#CUSTOM_GITHUB_TOKEN}"
+        
+        echo "=== Python 스크립트 실행 ==="
         python .github/scripts/update_stats.py
+      env:
+        CUSTOM_GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
         
     - name: Commit and push changes
       run: |
@@ -65,6 +72,10 @@ jobs:
         # 변경사항이 있는지 확인
         if git diff --quiet; then
           echo "❌ 변경사항이 없습니다."
+          echo "=== 현재 README 내용 확인 ==="
+          head -20 profile/README.md
+          echo "=== 스크립트 실행 결과 확인 ==="
+          python .github/scripts/update_stats.py || echo "스크립트 실행 실패"
           exit 0
         fi
         
