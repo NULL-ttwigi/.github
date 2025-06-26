@@ -132,109 +132,82 @@ def get_user_repos_count(username, user_repos):
     """해당 사용자의 레포지토리 개수를 반환합니다."""
     return len(user_repos)
 
-def get_user_total_commits(username, user_repos):
-    """해당 사용자의 레포지토리들에서 문제 풀이 커밋 수를 계산합니다."""
-    try:
-        total_commits = 0
-        unique_commit_messages = set()  # 중복 커밋 메시지 방지
-        
-        for repo in user_repos:
-            repo_name = repo['name']
-            # 최근 1년간의 커밋 수를 가져옵니다
-            since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-            url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
-            params = {
-                'author': username,
-                'since': since_date,
-                'per_page': 100
-            }
-            
-            response = requests.get(url, headers=HEADERS, params=params)
-            
-            if response.status_code == 200:
-                commits = response.json()
-                problem_solve_count = 0
-                
-                for commit in commits:
-                    commit_message = commit.get('commit', {}).get('message', '')
-                    if is_problem_solve_commit(commit_message):
-                        # 대소문자 구분 없이 공백 제거한 정규화된 메시지로 중복 체크
-                        normalized_message = commit_message.lower().replace(' ', '')
-                        if normalized_message not in unique_commit_messages:
-                            unique_commit_messages.add(normalized_message)
-                            problem_solve_count += 1
-                        else:
-                            print(f"   중복 커밋 메시지 제외: {commit_message}")
-                
-                total_commits += problem_solve_count
-                print(f"   {repo_name}: {problem_solve_count}개 문제 풀이 커밋 (중복 제거 후)")
-            else:
-                print(f"   {repo_name}: 커밋 조회 실패 ({response.status_code})")
-        
-        print(f"📊 {username} 총 문제 풀이 커밋 수: {total_commits}개 (중복 제거 후)")
-        return total_commits
-        
-    except Exception as e:
-        print(f"Error getting total commits for {username}: {e}")
-        return 0
 
-def get_weekly_goal_achieved_weeks(username, user_repos):
-    """사용자의 레포지토리들에서 주 3커밋 이상 달성한 주 수를 계산합니다."""
-    try:
-        print(f"🔍 {username}의 주간 목표 달성 계산:")
-        print(f"   대상 레포지토리: {[repo.get('name') for repo in user_repos]}")
+def get_user_commits_data(username, user_repos):
+    """사용자의 모든 커밋 데이터를 한 번에 가져옵니다."""
+    all_commits_data = []
+    
+    for repo in user_repos:
+        repo_name = repo['name']
+        since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
+        params = {
+            'author': username,
+            'since': since_date,
+            'per_page': 100
+        }
         
-        # 주별로 그룹화 (중복 커밋 메시지 방지)
-        weekly_commits = {}
-        weekly_unique_messages = {}  # 주별 고유 커밋 메시지 추적
+        response = requests.get(url, headers=HEADERS, params=params)
         
-        for repo in user_repos:
-            repo_name = repo['name']
-            # 최근 1년간의 커밋 수를 가져옵니다
-            since_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-            url = f'https://api.github.com/repos/{ORG_NAME}/{repo_name}/commits'
-            params = {
-                'author': username,
-                'since': since_date,
-                'per_page': 100
-            }
+        if response.status_code == 200:
+            commits = response.json()
+            for commit in commits:
+                commit_message = commit.get('commit', {}).get('message', '')
+                if is_problem_solve_commit(commit_message):
+                    commit_date_str = commit.get('commit', {}).get('author', {}).get('date', '')[:10]
+                    all_commits_data.append({
+                        'message': commit_message,
+                        'date': commit_date_str,
+                        'repo': repo_name
+                    })
+            print(f"   {repo_name}: {len([c for c in commits if is_problem_solve_commit(c.get('commit', {}).get('message', ''))])}개 문제 풀이 커밋")
+        else:
+            print(f"   {repo_name}: 커밋 조회 실패 ({response.status_code})")
+    
+    return all_commits_data
+
+def calculate_total_commits_from_data(commits_data):
+    """커밋 데이터에서 총 문제 풀이 수를 계산합니다."""
+    unique_commit_messages = set()
+    total_commits = 0
+    
+    for commit_data in commits_data:
+        commit_message = commit_data['message']
+        normalized_message = commit_message.lower().replace(' ', '')
+        
+        if normalized_message not in unique_commit_messages:
+            unique_commit_messages.add(normalized_message)
+            total_commits += 1
+        else:
+            print(f"   중복 커밋 메시지 제외: {commit_message}")
+    
+    return total_commits
+
+def calculate_weekly_goals_from_data(commits_data):
+    """커밋 데이터에서 주간 목표 달성 주 수를 계산합니다."""
+    weekly_commits = {}
+    weekly_unique_messages = {}
+    
+    for commit_data in commits_data:
+        commit_message = commit_data['message']
+        commit_date_str = commit_data['date']
+        
+        if commit_date_str:
+            commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d')
+            week_key = commit_date.strftime('%Y-W%U')
             
-            response = requests.get(url, headers=HEADERS, params=params)
+            if week_key not in weekly_unique_messages:
+                weekly_unique_messages[week_key] = set()
+                weekly_commits[week_key] = 0
             
-            if response.status_code == 200:
-                commits = response.json()
-                
-                for commit in commits:
-                    commit_message = commit.get('commit', {}).get('message', '')
-                    if is_problem_solve_commit(commit_message):
-                        commit_date_str = commit.get('commit', {}).get('author', {}).get('date', '')[:10]
-                        if commit_date_str:
-                            commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d')
-                            week_key = commit_date.strftime('%Y-W%U')  # YYYY-WNN 형식 (주 번호)
-                            
-                            # 해당 주의 고유 커밋 메시지 집합 초기화
-                            if week_key not in weekly_unique_messages:
-                                weekly_unique_messages[week_key] = set()
-                                weekly_commits[week_key] = 0
-                            
-                            # 대소문자 구분 없이 공백 제거한 정규화된 메시지로 중복 체크
-                            normalized_message = commit_message.lower().replace(' ', '')
-                            if normalized_message not in weekly_unique_messages[week_key]:
-                                weekly_unique_messages[week_key].add(normalized_message)
-                                weekly_commits[week_key] += 1
-        
-        # 주 3커밋 이상 달성한 주 수 계산
-        achieved_weeks = 0
-        for week, commit_count in weekly_commits.items():
-            if commit_count >= 3:
-                achieved_weeks += 1
-        
-        print(f"   주 3커밋 이상 달성: {achieved_weeks}주 (중복 제거 후)")
-        return achieved_weeks
-        
-    except Exception as e:
-        print(f"Error calculating weekly goals for {username}: {e}")
-        return 0
+            normalized_message = commit_message.lower().replace(' ', '')
+            if normalized_message not in weekly_unique_messages[week_key]:
+                weekly_unique_messages[week_key].add(normalized_message)
+                weekly_commits[week_key] += 1
+    
+    # 주 3커밋 이상 달성한 주 수 계산
+    achieved_weeks = sum(1 for count in weekly_commits.values() if count >= 3)
+    return achieved_weeks
 
 def get_user_stats(username, org_repos):
     """조직 내에서 사용자의 퍼블릭 레포지토리 통계를 가져옵니다."""
@@ -247,10 +220,20 @@ def get_user_stats(username, org_repos):
         # 먼저 해당 사용자의 레포지토리들을 식별
         user_repos = get_user_repositories(username, org_repos)
         
-        # 식별된 레포지토리들을 기반으로 통계 계산
+        # 레포지토리 개수 계산
         repos_count = get_user_repos_count(username, user_repos)
-        total_commits = get_user_total_commits(username, user_repos)
-        weekly_goals = get_weekly_goal_achieved_weeks(username, user_repos)
+        
+        # 커밋 데이터를 한 번만 가져와서 재사용 (성능 최적화)
+        print(f"🔍 {username}의 커밋 데이터 수집:")
+        commits_data = get_user_commits_data(username, user_repos)
+        
+        # 수집된 데이터로 통계 계산
+        total_commits = calculate_total_commits_from_data(commits_data)
+        weekly_goals = calculate_weekly_goals_from_data(commits_data)
+        
+        print(f"📊 {username} 최종 통계:")
+        print(f"   - 총 문제 풀이: {total_commits}개 (중복 제거 후)")
+        print(f"   - 주 3커밋 이상 달성: {weekly_goals}주 (중복 제거 후)")
         
         return {
             'name': MEMBERS[username],
