@@ -36,7 +36,7 @@ TIERS = {
 PROBLEM_SOLVE_PATTERNS = [
     r'\[BOJ-\d+\]',  # [BOJ-0001 or BOJ-1] 형태
     r'\[Programmers\]',  # [Programmers] 형태
-    r'\[LeetCode\]',  # [LeetCode] 형태
+    r'\[LC-\d+\]',  # [LC-0001 or LC-1] 형태
     r'\[SWEA\]',  # [SWEA] 형태
 ]
 
@@ -363,7 +363,7 @@ def update_readme():
             content = re.sub(old_pattern, performance_section.rstrip(), content, flags=re.DOTALL)
         else:
             # 패턴을 찾지 못하면 적절한 위치에 추가
-            content = content.replace('## 🤖 자동 통계 업데이트', f'{performance_section}\n## 🤖 자동 통계 업데이트')
+            content = content.replace('## 🤖 자동 통계 업데이트', f'{performance_section}\n\n## 🤖 자동 통계 업데이트')
     
     # 업데이트된 README 저장
     try:
