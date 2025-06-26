@@ -136,6 +136,7 @@ def get_user_total_commits(username, user_repos):
     """해당 사용자의 레포지토리들에서 문제 풀이 커밋 수를 계산합니다."""
     try:
         total_commits = 0
+        unique_commit_messages = set()  # 중복 커밋 메시지 방지
         
         for repo in user_repos:
             repo_name = repo['name']
@@ -157,14 +158,20 @@ def get_user_total_commits(username, user_repos):
                 for commit in commits:
                     commit_message = commit.get('commit', {}).get('message', '')
                     if is_problem_solve_commit(commit_message):
-                        problem_solve_count += 1
+                        # 대소문자 구분 없이 공백 제거한 정규화된 메시지로 중복 체크
+                        normalized_message = commit_message.lower().replace(' ', '')
+                        if normalized_message not in unique_commit_messages:
+                            unique_commit_messages.add(normalized_message)
+                            problem_solve_count += 1
+                        else:
+                            print(f"   중복 커밋 메시지 제외: {commit_message}")
                 
                 total_commits += problem_solve_count
-                print(f"   {repo_name}: {problem_solve_count}개 문제 풀이 커밋")
+                print(f"   {repo_name}: {problem_solve_count}개 문제 풀이 커밋 (중복 제거 후)")
             else:
                 print(f"   {repo_name}: 커밋 조회 실패 ({response.status_code})")
         
-        print(f"📊 {username} 총 문제 풀이 커밋 수: {total_commits}개")
+        print(f"📊 {username} 총 문제 풀이 커밋 수: {total_commits}개 (중복 제거 후)")
         return total_commits
         
     except Exception as e:
@@ -177,8 +184,9 @@ def get_weekly_goal_achieved_weeks(username, user_repos):
         print(f"🔍 {username}의 주간 목표 달성 계산:")
         print(f"   대상 레포지토리: {[repo.get('name') for repo in user_repos]}")
         
-        # 주별로 그룹화
+        # 주별로 그룹화 (중복 커밋 메시지 방지)
         weekly_commits = {}
+        weekly_unique_messages = {}  # 주별 고유 커밋 메시지 추적
         
         for repo in user_repos:
             repo_name = repo['name']
@@ -204,9 +212,16 @@ def get_weekly_goal_achieved_weeks(username, user_repos):
                             commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d')
                             week_key = commit_date.strftime('%Y-W%U')  # YYYY-WNN 형식 (주 번호)
                             
-                            if week_key not in weekly_commits:
+                            # 해당 주의 고유 커밋 메시지 집합 초기화
+                            if week_key not in weekly_unique_messages:
+                                weekly_unique_messages[week_key] = set()
                                 weekly_commits[week_key] = 0
-                            weekly_commits[week_key] += 1
+                            
+                            # 대소문자 구분 없이 공백 제거한 정규화된 메시지로 중복 체크
+                            normalized_message = commit_message.lower().replace(' ', '')
+                            if normalized_message not in weekly_unique_messages[week_key]:
+                                weekly_unique_messages[week_key].add(normalized_message)
+                                weekly_commits[week_key] += 1
         
         # 주 3커밋 이상 달성한 주 수 계산
         achieved_weeks = 0
@@ -214,7 +229,7 @@ def get_weekly_goal_achieved_weeks(username, user_repos):
             if commit_count >= 3:
                 achieved_weeks += 1
         
-        print(f"   주 3커밋 이상 달성: {achieved_weeks}주")
+        print(f"   주 3커밋 이상 달성: {achieved_weeks}주 (중복 제거 후)")
         return achieved_weeks
         
     except Exception as e:
